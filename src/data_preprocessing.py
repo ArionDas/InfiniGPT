@@ -84,7 +84,7 @@ def main():
     token_embedding_layer = nn.Embedding(vocab_size, output_dim)
     position_embedding_layer = nn.Embedding(context_length, output_dim)
 
-    url = "https://raw.githubusercontent.com/ArionDas/InfiniGPT/main/data/book_clean.txt"
+    url = "https://github.com/ArionDas/InfiniGPT/blob/eb3abdc6eaf1d8f17be7e92e81fd641a710aae26/data/book_clean.txt"
     response = requests.get(url)
     txt = response.text
 
