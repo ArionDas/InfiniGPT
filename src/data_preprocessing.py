@@ -91,9 +91,9 @@ def main():
     dataloader = InfiniGPTDataLoader(txt, batch_size=8, max_length=max_length, stride=max_length)
 
     for batch in dataloader:
-        X, y = batch
+        x, y = batch
         
-        token_embeddings = token_embedding_layer(X)
+        token_embeddings = token_embedding_layer(x)
         position_embeddings = position_embedding_layer(torch.arange(max_length))
         
         input_embeddings = token_embeddings + position_embeddings
