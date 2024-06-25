@@ -5,8 +5,9 @@ from typing import Optional, Tuple
 from transformers.modeling_utils import Cache
 from transformers import AutoConfig
 from rotary_embeddings import RotaryEmbedding
+from infini_gpt_config import INFINIGPT_CONFIG
 
-### Rotary Embeddings copied from jlamprou repo
+### Rotary Embeddings from jlamprou repo
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
     x1 = x[..., : x.shape[-1] // 2]
@@ -137,6 +138,10 @@ class InfiniAttention(nn.Module):
             key_states = self.k_proj(hidden_states)
             value_states = self.q_proj(hidden_states)
             
+            """
+            bsz = batch_size
+            q_len = sequence_length
+            """
             query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1,2)
             key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
             value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).transpose(1, 2)
@@ -179,11 +184,17 @@ class InfiniAttention(nn.Module):
                 dropout_p=self.attention_dropout if self.training else 0.0,
             )
             
-            combined_output = self.long_term_injection_(attn_output, memory_output)
+            combined_output = self.long_term_memory_injection_(attn_output, memory_output)
             
             #### output for this segment
             combined_output = combined_output.transpose(1,2).contiguous()
             combined_output = combined_output.view(bsz, q_len, self.hidden_size)
             final_output = self.o_proj(combined_output)
             return final_output, None, past_key_value
+        
+        
+""" Confusions : 
+1) **Cache** ?? How to use it to store the past key value states in the input stream?
+2) Tensor dimensions have to be matched from the dataloader with that of infini_attention.
+"""
                     

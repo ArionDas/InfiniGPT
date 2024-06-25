@@ -7,15 +7,17 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from data_preprocessing import InfiniGPTDataset, InfiniGPTDataLoader
 from attention import CausalSelfAttention, MultiHeadAttention
+from infini_gpt_config import INFINIGPT_CONFIG
 
 
 def main():
     
     ### Hyperparameters
-    vocab_size = 50257
+    config = INFINIGPT_CONFIG
+    vocab_size = config["vocab_size"]
     output_dim = 256
     max_length = 4
-    context_length = 1024
+    context_length = config["context_length"]
     
     ### Embeddings
     token_embedding_layer = nn.Embedding(vocab_size, output_dim)
