@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from data_preprocessing import InfiniGPTDataset, InfiniGPTDataLoader
-from attention import CausalSelfAttention, MultiHeadAttention
+from infini_transformer import InfiniTransformer
 from infini_gpt_config import INFINIGPT_CONFIG
 
 
@@ -15,9 +15,12 @@ def main():
     ### Hyperparameters
     config = INFINIGPT_CONFIG
     vocab_size = config["vocab_size"]
-    output_dim = 256
-    max_length = 4
+    input_dim = config["input_dim"]
+    output_dim = config["output_dim"]
     context_length = config["context_length"]
+    num_heads = config["num_attention_heads"]
+    key_value_dim = config["key_value_dim"]
+    dim_hidden = config["hidden_dim"]
     
     ### Embeddings
     token_embedding_layer = nn.Embedding(vocab_size, output_dim)
@@ -27,31 +30,28 @@ def main():
     response = requests.get(url)
     txt = response.text
     
-    dataloader = InfiniGPTDataLoader(txt, batch_size=8, max_length=max_length, stride=max_length)
-    
+    dataloader = InfiniGPTDataLoader(txt, batch_size=8, max_length=context_length, stride=context_length)
+    input_embeddings = torch.Tensor
     for batch in dataloader:
         x, y = batch
         
         token_embeddings = token_embedding_layer(x)
-        position_embeddings = position_embedding_layer(torch.arange(max_length))
+        position_embeddings = position_embedding_layer(torch.arange(context_length))
         
         input_embeddings = token_embeddings + position_embeddings
 
     ##print(input_embeddings.shape)
     
     torch.manual_seed(123)
+    segment_len = 2048
     
-    context_length = max_length
-    d_in = output_dim
-    num_heads = 2
-    d_out = d_in // num_heads
-    
-    mha = MultiHeadAttention(d_in, d_out, context_length, 0.0, num_heads)
+    infini_transformer = InfiniTransformer(input_dim, dim_hidden, key_value_dim, key_value_dim, num_heads, "relu", segment_len, "delta", False, None, True, 0.1)
     
     batch = input_embeddings
-    context_vecs = mha(batch)
-    
-    print(context_vecs.shape)
+    print("Batch shape ->", batch.shape)
+    context_vecs = infini_transformer(batch)
+    print("Context vector shape ->", context_vecs.shape)
+    print(context_vecs)
     
 if __name__ == "__main__":
     main()
