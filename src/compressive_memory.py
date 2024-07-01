@@ -51,9 +51,9 @@ class CompressiveMemory(nn.Module):
         self.position_embedder = position_embedder
 
         # Projections for stacked SDP attention
-        self.proj_k = nn.Linear(dim_input, num_attention_heads * dim_key, bias=False)
-        self.proj_v = nn.Linear(dim_input, num_attention_heads * dim_value, bias=False)
-        self.proj_q = nn.Linear(dim_input, num_attention_heads * dim_key, bias=False)
+        self.proj_keys = nn.Linear(dim_input, num_attention_heads * dim_key, bias=False)
+        self.proj_values = nn.Linear(dim_input, num_attention_heads * dim_value, bias=False)
+        self.proj_query = nn.Linear(dim_input, num_attention_heads * dim_key, bias=False)
 
         # For weighted average of dot-product and memory-based attention
         self.betas = nn.Parameter(torch.randn(1, num_attention_heads, 1, dim_value))
@@ -64,15 +64,15 @@ class CompressiveMemory(nn.Module):
         # If init_state_learnable is set, create parameters for the initial memory matrix and normalization vector
         # otherwise, set them to None
         if init_state_learnable:
-            self.init_mem = nn.Parameter(torch.randn(1, self.num_attention_heads, self.dim_key, self.dim_value))
-            self.init_z = nn.Parameter(torch.ones(1, self.num_attention_heads, self.dim_key, 1))
+            self.memory = nn.Parameter(torch.randn(1, self.num_attention_heads, self.dim_key, self.dim_value))
+            self.norm = nn.Parameter(torch.ones(1, self.num_attention_heads, self.dim_key, 1))
         else:
-            self.init_mem = None
-            self.init_z = None
+            self.memory = None
+            self.norm = None
 
     def forward(self, x: torch.Tensor, sample_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
-        Applies Compressive Memory Attention to the input tensor.
+        Applying Compressive Memory Attention to the input tensor.
 
         Args:
             x (torch.Tensor): Input tensor of shape (batch_size, seq_len, dim_input).
@@ -87,20 +87,20 @@ class CompressiveMemory(nn.Module):
         out = [] ## output buffer
 
         # Memory intialization and normalization
-        if self.init_mem is not None and self.init_z is not None:
-            mem = self.init_mem
-            z = self.init_z
+        if self.memory is not None and self.norm is not None:
+            mem = self.memory
+            z = self.norm
         else:
             mem = torch.zeros(1, self.num_attention_heads, self.dim_key, self.dim_value)
             z = torch.ones(batch_size, self.num_attention_heads, self.dim_key, 1) / self.dim_key
         
         ## Projections to get the key, value, and query tensors
         """
-        We add a new index to use it to divide the input sequence into segments as mentioned in the paper.
+        We introcude a new dimension to use it to divide the input sequence into segments as mentioned in the paper.
         """
-        k_proj = self.proj_k(x).unsqueeze(1).view((batch_size, self.num_attention_heads, x.size(1), self.dim_key))
-        v_proj = self.proj_v(x).unsqueeze(1).view((batch_size, self.num_attention_heads, x.size(1), self.dim_value))
-        q_proj = self.proj_q(x).unsqueeze(1).view((batch_size, self.num_attention_heads, x.size(1), self.dim_key))
+        key_proj = self.proj_keys(x).unsqueeze(1).view((batch_size, self.num_attention_heads, x.size(1), self.dim_key))
+        value_proj = self.proj_values(x).unsqueeze(1).view((batch_size, self.num_attention_heads, x.size(1), self.dim_value))
+        query_proj = self.proj_query(x).unsqueeze(1).view((batch_size, self.num_attention_heads, x.size(1), self.dim_key))
         
         ## Iterating over segments
         for segment in range(num_segments):
@@ -109,9 +109,9 @@ class CompressiveMemory(nn.Module):
             segment_length = segment_ending_index - segment_starting_index
 
             # Extracting a segment from key, value and query tensors
-            k = k_proj[:, :, segment_starting_index:segment_ending_index, :]
-            v = v_proj[:, :, segment_starting_index:segment_ending_index, :]
-            q = q_proj[:, :, segment_starting_index:segment_ending_index, :]
+            k = key_proj[:, :, segment_starting_index:segment_ending_index, :]
+            v = value_proj[:, :, segment_starting_index:segment_ending_index, :]
+            q = query_proj[:, :, segment_starting_index:segment_ending_index, :]
             
             # Applying a sample mask
             if sample_mask is not None:
@@ -124,6 +124,8 @@ class CompressiveMemory(nn.Module):
                 sample_mask_seg = None
             
             # If position embedder is specified, add positional embeddings to q and k
+            ## Note that I didn't use it, as its not the essence of the paper. Position Embeddings have been calculated during data preprocessing.
+            ## Nonetheless, I have included dingo-actual's implementation of RoPE & YaRN embeddings.
             if self.position_embedder is not None:
                 if sample_mask is None:
                     k_pos = self.position_embedder(k, total_seq_len=seq_len, offset=segment_starting_index)
@@ -134,7 +136,7 @@ class CompressiveMemory(nn.Module):
             
             # sigma(q) is pre-calculated for updating memory and calculating attention
             # shape: (batch_size, num_attention_heads, segment_length, dim_key)
-            sigma_q = (nn.functional.elu(q) + 1.0)
+            sigma_query = (nn.functional.elu(q) + 1.0)
 
             # Applying Scaled Dot Product attention
             if self.position_embedder is not None:
@@ -153,7 +155,7 @@ class CompressiveMemory(nn.Module):
 
             # Normalized linear attention
             # shape: (batch_size, num_attention_heads, segment_lengthgth, dim_value)
-            att_mem = (sigma_q @ mem) / (sigma_q @ z)
+            att_mem = (sigma_query @ mem) / (sigma_query @ z)
 
             # Applying memory update
             sigma_k = nn.functional.elu(k) + 1.0
@@ -161,6 +163,8 @@ class CompressiveMemory(nn.Module):
 
                 In the 'Linear' case, we don't remove already existing parts from the memory.
                 But, in 'Delta' case, we remove the already existing parts to avoid repetition.
+                
+                Refer to the paper for more details
             """
             if self.update == "linear":
                 mem = mem + sigma_k.transpose(-2, -1) @ v
