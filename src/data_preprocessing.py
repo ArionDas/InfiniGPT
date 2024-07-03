@@ -12,6 +12,8 @@ import torch.nn as nn
 from IPython.display import display
 from IPython.display import Markdown
 
+from infini_gpt_config import INFINIGPT_CONFIG
+
 def to_markdown(text):
   text = text.replace('•', '  *')
   return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
@@ -74,14 +76,16 @@ def InfiniGPTDataLoader(txt, batch_size=4, max_length=256, stride=128, shuffle=F
 def main():
 
     ### Hyperparameters
-    vocab_size = 50257
-    output_dim = 256
-    context_length = 1024
+    config = INFINIGPT_CONFIG
+    vocab_size = config["vocab_size"]
+    embedding_dim = config["emb_dim"]
+    output_dim = config["output_dim"]
+    context_length = config["context_length"]
     max_length = 4
 
     ### Embeddings
-    token_embedding_layer = nn.Embedding(vocab_size, output_dim)
-    position_embedding_layer = nn.Embedding(context_length, output_dim)
+    token_embedding_layer = nn.Embedding(vocab_size, embedding_dim)
+    position_embedding_layer = nn.Embedding(context_length, embedding_dim)
 
     url = "https://github.com/ArionDas/InfiniGPT/blob/eb3abdc6eaf1d8f17be7e92e81fd641a710aae26/data/book_clean.txt"
     response = requests.get(url)

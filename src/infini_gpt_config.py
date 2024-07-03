@@ -8,12 +8,9 @@ INFINIGPT_CONFIG = {
     "n_layers": 12,                     # Number of layers
     "drop_rate": 0.1,                   # Dropout rate
     "qkv_bias": False,                  # Query-Key-Value bias
-    "hidden_dim": 2048,                 # Hidden dimension
+    "hidden_dim": 4096,                 # Hidden dimension
     "segment_len": 2048,                # Segment length
     "key_value_dim": 64,                # Key & Value dimensions
     "update": "delta",                  # Update rule
+    "drop_rate" : 0.1,                  # Dropout rate
 }
-
-## segment length = 2048
-## sequence length = 32768
-## num of segments = 32768/2048 = 16

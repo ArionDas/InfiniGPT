@@ -16,15 +16,18 @@ def main():
     config = INFINIGPT_CONFIG
     vocab_size = config["vocab_size"]
     input_dim = config["input_dim"]
+    embedding_dim = config["emb_dim"]
     output_dim = config["output_dim"]
     context_length = config["context_length"]
     num_heads = config["num_attention_heads"]
+    num_layers = config["n_layers"]
     key_value_dim = config["key_value_dim"]
     dim_hidden = config["hidden_dim"]
+    drop_rate = config["drop_rate"]
     
     ### Embeddings
-    token_embedding_layer = nn.Embedding(vocab_size, output_dim)
-    position_embedding_layer = nn.Embedding(context_length, output_dim)
+    token_embedding_layer = nn.Embedding(vocab_size, embedding_dim)
+    position_embedding_layer = nn.Embedding(context_length, embedding_dim)
 
     url = "https://github.com/ArionDas/InfiniGPT/blob/eb3abdc6eaf1d8f17be7e92e81fd641a710aae26/data/book_clean.txt"
     response = requests.get(url)
@@ -45,7 +48,7 @@ def main():
     torch.manual_seed(123)
     segment_len = 2048
     
-    infini_transformer = InfiniTransformer(input_dim, dim_hidden, key_value_dim, key_value_dim, num_heads, "relu", segment_len, "delta", False, None, True, 0.1)
+    infini_transformer = InfiniTransformer(embedding_dim, dim_hidden, key_value_dim, key_value_dim, num_heads, "relu", segment_len, "delta", False, None, True, 0.1)
     
     batch = input_embeddings
     print("Batch shape ->", batch.shape)
