@@ -52,12 +52,10 @@ class InfiniGPT(nn.Module):
         return logits
     
 def generate_text_simple(model, idx, max_new_tokens, context_size):
-    # idx is (B, T) array of indices in the current context
+
     for _ in range(max_new_tokens):
 
-        # Crop current context if it exceeds the supported context size
-        # E.g., if LLM supports only 5 tokens, and the context size is 10
-        # then only the last 5 tokens are used as context
+        # Crop current context if it exceeds the supported context length
         idx_cond = idx[:, -context_size:]
 
         # Get the predictions

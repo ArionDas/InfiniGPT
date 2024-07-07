@@ -75,6 +75,7 @@ class InfiniTransformer(nn.Module):
             nn.Linear(dim_hidden, dim_input),
             nn.Dropout(dropout)
         )
+        self.drop_emb = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(dim_input)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -87,7 +88,9 @@ class InfiniTransformer(nn.Module):
             torch.Tensor: Output tensor of shape (batch_size, seq_len, dim_input).
         """
         # Apply multi-head attention, followed by MLP and layer normalization with residual connection.
+        x = self.layer_norm(x)
         x_ = self.attn(x)
+        x_ = self.drop_emb(x_)
         x_ = self.mlp(x_)
 
         return self.layer_norm(x_ + x)

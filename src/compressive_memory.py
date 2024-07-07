@@ -83,7 +83,7 @@ class CompressiveMemory(nn.Module):
         batch_size, seq_len, _ = x.shape
 
         num_segments = (seq_len // self.segment_length) + (seq_len % self.segment_length > 0) ##effectively calculating number of segments
-        print(num_segments)
+        print("Number of segments ->", num_segments)
         out = [] ## output buffer
 
         # Memory intialization and normalization
