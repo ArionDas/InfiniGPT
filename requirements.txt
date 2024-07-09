@@ -4,3 +4,4 @@ ipykernel
 tiktoken
 numpy==1.26.4
 transformers
+matplotlib

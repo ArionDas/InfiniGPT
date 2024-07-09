@@ -8,22 +8,6 @@ from data_preprocessing import InfiniGPTDataset, InfiniGPTDataLoader
 from infini_transformer import InfiniTransformer
 from infini_gpt_config import INFINIGPT_CONFIG
 
-
-class LayerNorm(nn.Module):
-    def __init__(self, emb_dim):
-        super().__init__()
-        self.eps = 1e-5
-        self.scale = nn.Parameter(torch.ones(emb_dim))
-        self.shift = nn.Parameter(torch.zeros(emb_dim))
-        
-    def forward(self, x):
-        mean = x.mean(dim=-1, keepdim=True)
-        var = x.var(dim=-1, keepdim=True, unbiased=False)
-        norm_x = (x-mean) / torch.sqrt(var + self.eps)
-        
-        return self.scale * norm_x + self.shift
-
-
 class InfiniGPT(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -32,11 +16,11 @@ class InfiniGPT(nn.Module):
         self.drop_emb = nn.Dropout(config["drop_rate"])
         
         self.infini_transformer_blocks = nn.Sequential(
-            *[InfiniTransformer(config["emb_dim"], config["hidden_dim"], config["key_value_dim"], config["key_value_dim"], config["num_attention_heads"], "relu", config["segment_len"], config["update"], False, None, True, config["drop_rate"]) for _ in range(config["n_layers"])]
+            *[InfiniTransformer(config["emb_dim"], config["emb_dim"], config["hidden_dim"], config["key_value_dim"], config["key_value_dim"], config["num_attention_heads"], "relu", config["segment_len"], config["update"], False, None, True, config["drop_rate"]) for _ in range(config["n_layers"])]
         )
         
-        self.final_norm = LayerNorm(config["emb_dim"])
-        self.out_head = nn.Linear(config["emb_dim"], config["vocab_size"], bias=False)
+        self.final_norm = nn.LayerNorm(config["emb_dim"])
+        self.ff = nn.Linear(config["emb_dim"], config["vocab_size"], bias=False)
         
     def forward(self, context):
         batch_size, seq_len = context.shape
@@ -47,11 +31,10 @@ class InfiniGPT(nn.Module):
         x = self.drop_emb(x)
         x = self.infini_transformer_blocks(x)
         x = self.final_norm(x)
-        
-        logits = self.out_head(x)
+        logits = self.ff(x)
         return logits
     
-def generate_text_simple(model, idx, max_new_tokens, context_size):
+"""def generate_text_simple(model, idx, max_new_tokens, context_size):
 
     for _ in range(max_new_tokens):
 
@@ -72,7 +55,7 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
         # Append sampled index to the running sequence
         idx = torch.cat((idx, idx_next), dim=1)  # (batch, n_tokens+1)
 
-    return idx
+    return idx"""
         
 def main():
     
@@ -100,7 +83,7 @@ def main():
     encoded = tokenizer.encode(start_context)
     encoded_tensor = torch.tensor(encoded).unsqueeze(0)
     
-    out = generate_text_simple(
+    """out = generate_text_simple(
         model=model,
         idx=encoded_tensor,
         max_new_tokens=10,
@@ -108,7 +91,7 @@ def main():
     )
     decoded_text = tokenizer.decode(out.squeeze(0).tolist())
     
-    print(decoded_text)
+    print(decoded_text)"""
     
     """
     dataloader = InfiniGPTDataLoader(txt, batch_size=8, max_length=context_length, stride=context_length)
@@ -132,6 +115,3 @@ def main():
     
 if __name__ == '__main__':
     main()
-    
-## doc Q/A - prototype
-## increase acc

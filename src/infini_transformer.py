@@ -7,7 +7,29 @@ from torch import nn
 from activation import ACTIVATIONS
 from compressive_memory import CompressiveMemory
 from positional_embeddings import PositionEmbeddings
+from infini_gpt_config import INFINIGPT_CONFIG
 
+class GELU(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return 0.5 * x * (1 + torch.tanh(
+            torch.sqrt(torch.tensor(2.0 / torch.pi)) *
+            (x + 0.044715 * torch.pow(x, 3))
+        ))
+
+class FeedForward(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(config["emb_dim"], 4 * config["emb_dim"]),
+            GELU(),
+            nn.Linear(4 * config["emb_dim"], config["emb_dim"])
+        )
+        
+    def forward(self, x):
+        return self.layers(x)
 
 class InfiniTransformer(nn.Module):
     """Transformer layer with compressive memory."""
@@ -15,6 +37,7 @@ class InfiniTransformer(nn.Module):
     def __init__(
         self,
         dim_input: int,
+        emb_dim: int,
         dim_hidden: int,
         dim_key: int,
         dim_value: int,
@@ -44,13 +67,14 @@ class InfiniTransformer(nn.Module):
             init_state_learnable (bool, optional): Whether the initial state of the CompressiveMemory should be learnable. Defaults to False.
             dropout (float, optional): Dropout rate for the MLP. Defaults to 0.0.
         """
-        super(InfiniTransformer, self).__init__()
+        super().__init__()
         
         # If sampling_factor passed to kwargs, use it, otherwise set to None
         sampling_factor = kwargs.get("sampling_factor", None)
         
+        config = INFINIGPT_CONFIG
         # Multi-head attention
-        self.attn = CompressiveMemory(
+        self.infini_attention = CompressiveMemory(
             dim_input=dim_input, 
             dim_key=dim_key, 
             dim_value=dim_value, 
@@ -60,7 +84,8 @@ class InfiniTransformer(nn.Module):
             update=update, 
             causal=causal,  
             position_embedder=position_embedder, 
-            init_state_learnable=init_state_learnable)
+            init_state_learnable=init_state_learnable
+        )
         # MLP
         if activation not in ACTIVATIONS:
             raise ValueError(f"Invalid activation function: {activation}")
@@ -68,6 +93,7 @@ class InfiniTransformer(nn.Module):
             act = ACTIVATIONS[activation](dim_hidden)
         else:
             act = ACTIVATIONS[activation]()
+            
         self.mlp = nn.Sequential(
             nn.Linear(dim_input, dim_hidden),
             nn.Dropout(dropout),
@@ -75,6 +101,8 @@ class InfiniTransformer(nn.Module):
             nn.Linear(dim_hidden, dim_input),
             nn.Dropout(dropout)
         )
+        
+        self.ff = FeedForward(config) ## Here, GELU() has been used instead of ReLU(), use self.mlp for using ReLU()
         self.drop_emb = nn.Dropout(dropout)
         self.layer_norm = nn.LayerNorm(dim_input)
 
@@ -87,10 +115,17 @@ class InfiniTransformer(nn.Module):
         Returns:
             torch.Tensor: Output tensor of shape (batch_size, seq_len, dim_input).
         """
-        # Apply multi-head attention, followed by MLP and layer normalization with residual connection.
+        # Apply infini attention, followed by fully connected layer and layer normalization
+        original = x
         x = self.layer_norm(x)
-        x_ = self.attn(x)
-        x_ = self.drop_emb(x_)
-        x_ = self.mlp(x_)
-
-        return self.layer_norm(x_ + x)
+        x = self.infini_attention(x)
+        x = self.drop_emb(x)
+        x = x + original
+        
+        original = x
+        x = self.layer_norm(x)
+        x = self.ff(x)
+        x = self.drop_emb(x)
+        x = x + original
+        
+        return x
