@@ -14,7 +14,7 @@ from activation import ACTIVATIONS
 from positional_embeddings import PositionEmbeddings
 
 ## InfiniGPT Config ##
-INFINIGPT_CONFIG = {
+"""INFINIGPT_CONFIG = {
     "vocab_size": 50257,                # Vocabulary size
     "input_dim": 1024,                   # Input dimension 
     "output_dim": 1024,                  # Output dimension               
@@ -31,6 +31,28 @@ INFINIGPT_CONFIG = {
     "key_value_dim": 64,                # Key & Value dimensions
     "update": "delta",                  # Update rule
     "num_epochs": 10,                   # Epochs
+    "drop_rate" : 0.1,                  # Dropout rate
+    "learning_rate": 1e-4,              # Learning rate
+    "weight_decay": 0.01,                # Weight decay
+}"""
+
+INFINIGPT_CONFIG = {
+    "vocab_size": 50257,                # Vocabulary size
+    "input_dim": 256,                   # Input dimension 
+    "output_dim": 256,                  # Output dimension               
+    "context_length": 512,             # Context length
+    "stride": 256,                     # Stride length
+    "emb_dim": 256,                     # Embedding dimension
+    "num_attention_heads": 2,           # Number of attention heads
+    "n_layers": 2,                      # Number of layers
+    "drop_rate": 0.1,                   # Dropout rate
+    "qkv_bias": False,                  # Query-Key-Value bias
+    "hidden_dim": 2048,                 # Hidden dimension
+    "segment_len": 512,                # Segment length
+    "batch_size": 4,                   # Batch size
+    "key_value_dim": 64,                # Key & Value dimensions
+    "update": "delta",                  # Update rule
+    "num_epochs": 1,                   # Epochs
     "drop_rate" : 0.1,                  # Dropout rate
     "learning_rate": 1e-4,              # Learning rate
     "weight_decay": 0.01,                # Weight decay
@@ -530,10 +552,11 @@ def main(config):
 
     """ Text Data """
     text_data = ""
-    file = open("data/full_text_dataset.txt", errors="ignore")
-    text_data = file.read()
-    print(len(text_data))
+    file_path = "./data/book_clean.txt"
 
+    file = open(file_path, errors="ignore")
+    text_data = file.read()
+    print(f"Total number of characters in the text dataset = {len(text_data)}")
 
 
     """ Model """
@@ -545,6 +568,7 @@ def main(config):
     optimizer = torch.optim.AdamW(
                 model.parameters(), config["learning_rate"], weight_decay=config["weight_decay"]
                 ) ## weight decay somewhat helps in preventing overfitting
+
 
     """ Dataloaders """
     train_ratio = 0.90
@@ -567,6 +591,7 @@ def main(config):
         drop_last = False,
         shuffle = True,
     )
+
 
     """ Model Training """
     tokenizer = tiktoken.get_encoding("gpt2")
