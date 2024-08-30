@@ -14,7 +14,7 @@ from activation import ACTIVATIONS
 from positional_embeddings import PositionEmbeddings
 
 ## InfiniGPT Config ##
-"""INFINIGPT_CONFIG = {
+INFINIGPT_CONFIG = {
     "vocab_size": 50257,                # Vocabulary size
     "input_dim": 1024,                   # Input dimension 
     "output_dim": 1024,                  # Output dimension               
@@ -34,9 +34,10 @@ from positional_embeddings import PositionEmbeddings
     "drop_rate" : 0.1,                  # Dropout rate
     "learning_rate": 1e-4,              # Learning rate
     "weight_decay": 0.01,                # Weight decay
-}"""
+}
 
-INFINIGPT_CONFIG = {
+## Parameters for testing model
+"""INFINIGPT_CONFIG = {
     "vocab_size": 50257,                # Vocabulary size
     "input_dim": 256,                   # Input dimension 
     "output_dim": 256,                  # Output dimension               
@@ -56,7 +57,7 @@ INFINIGPT_CONFIG = {
     "drop_rate" : 0.1,                  # Dropout rate
     "learning_rate": 1e-4,              # Learning rate
     "weight_decay": 0.01,                # Weight decay
-}
+}"""
 
 ## DataLoader ##
 class InfiniGPTDataset(Dataset):
